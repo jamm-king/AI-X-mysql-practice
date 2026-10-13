@@ -37,12 +37,12 @@ class MemberUsecase:
             service = self._create_member_service(connection)
             return service.buy(email, product_id, quantity)
         
-    def retrieve_purchase_list(self, email: str) -> tuple:
+    def retrieve_purchase_list(self, email: str) -> tuple[SaleDetail, ...]:
         with self.db.get_connection() as connection:
             service = self._create_sale_service(connection)
             return service.retrieve_by_member_email(email)
         
-    def retrieve_all_products(self) -> tuple:
+    def retrieve_all_products(self) -> tuple[Product, ...]:
         with self.db.get_connection() as connection:
             service = self._create_product_service(connection)
             return service.retrieve_all()
@@ -75,12 +75,12 @@ class AdminUsecase:
             service = self._create_product_service(connection)
             return service.register(name, price, stock, description, category)
         
-    def retrieve_all_purchases(self) -> tuple:
+    def retrieve_all_purchases(self) -> tuple[SaleDetail, ...]:
         with self.db.get_connection() as connection:
             service = self._create_sale_service(connection)
             return service.retrieve_all()
         
-    def retrieve_all_products(self) -> tuple:
+    def retrieve_all_products(self) -> tuple[Product, ...]:
         with self.db.get_connection() as connection:
             service = self._create_product_service(connection)
             return service.retrieve_all()

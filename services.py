@@ -78,7 +78,7 @@ class MemberService:
             self.tx.rollback()
             raise
 
-    def purchase_list(self, member_id: int) -> tuple:
+    def purchase_list(self, member_id: int) -> tuple[SaleDetail, ...]:
         if (member := self.member_repo.load(member_id)) is None:
             raise EntityNotFoundError.member_not_found(member_id)
         
@@ -109,7 +109,7 @@ class MemberService:
             self.tx.rollback()
             raise
     
-    def retrieve_all(self) -> tuple:
+    def retrieve_all(self) -> tuple[Member, ...]:
         return self.member_repo.load_all()
     
     def retrieve_by_email(self, email) -> Member:
@@ -189,7 +189,7 @@ class ProductService:
             self.tx.rollback()
             raise
     
-    def retrieve_all(self):
+    def retrieve_all(self) -> tuple[Product, ...]:
         return self.product_repo.load_all()
     
 class SaleService:
@@ -205,13 +205,13 @@ class SaleService:
         self.product_repo = product_repo
         self.sale_repo = sale_repo
         
-    def retrieve_by_member_email(self, email: str) -> tuple:
+    def retrieve_by_member_email(self, email: str) -> tuple[SaleDetail, ...]:
         if (member := self.member_repo.load_by_email(email)) is None:
             raise EntityNotFoundError.member_not_found_by_email(email)
         
         return self.sale_repo.load_by_member_id(member.member_id)
         
-    def retrieve_all(self) -> tuple:
+    def retrieve_all(self) -> tuple[SaleDetail, ...]:
         return self.sale_repo.load_all()
     
     def remove(self, sale_id: int) -> int:
