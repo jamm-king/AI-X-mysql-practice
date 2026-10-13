@@ -1,5 +1,6 @@
 from db import MysqlConnector
 from usecases import *
+from console_table import format_table
 
 class ConsoleApp():
     def __init__(
@@ -120,7 +121,7 @@ class ConsoleApp():
             print("회원 기능으로 돌아갑니다.")
             return
         print("|상품 목록|")
-        self.show_data(products)
+        self.show_products(products)
         
         try:  
             email = input("이메일을 입력해주세요: ")
@@ -173,7 +174,7 @@ class ConsoleApp():
         if len(sales) == 0:
             print("구매 내역이 없습니다.")
         else:
-            self.show_data(sales)
+            self.show_sales(sales)
         print("회원 기능으로 돌아갑니다.")
         
     def select_user(self) -> int:
@@ -226,8 +227,7 @@ class ConsoleApp():
             print("관리자 기능으로 돌아갑니다.")
             return
         
-        for sale in sales:
-            print(sale)
+        self.show_sales(sales)
         print("관리자 기능으로 돌아갑니다.")
         
     def modify_product(self):
@@ -245,8 +245,7 @@ class ConsoleApp():
             return
         
         print("|상품 목록|")
-        for product in products:
-            print(product)
+        self.show_products(products)
         
         try:
             product_id = int(input("수정할 상품 번호를 입력하세요: "))
@@ -302,7 +301,7 @@ class ConsoleApp():
             return
         
         print("|판매 내역|")
-        self.show_data(sales)
+        self.show_sales(sales)
         
         try:
             sale_id = int(input("삭제할 판매 번호를 입력하세요: "))
@@ -357,10 +356,33 @@ class ConsoleApp():
         
         return n
     
-    def show_data(self, data):
-        self.print_line()
-        for d in data:
-            print(d)
+    def show_sales(self, sales):
+        headers = ("판매 번호", "회원명", "상품명", "수량", "판매 금액", "구매 일시")
+        rows = []
+
+        for sale in sales:
+            row = (
+                sale.sale_id, sale.member_name, sale.product_name,
+                sale.quantity, f"{sale.sale_price:,.2f}", sale.sale_date
+            )
+            rows.append(row)
+
+        table = format_table(headers, rows, right_align = (0, 3, 4))
+        print(table)
+
+    def show_products(self, products):
+        headers = ("상품 번호", "상품명", "가격", "재고", "카테고리")
+        rows = []
+
+        for product in products:
+            row = (
+                product.product_id, product.name, f"{product.price:,.2f}",
+                product.stock, product.category if product.category else "N/A"
+            )
+            rows.append(row)
+
+        table = format_table(headers, rows, right_align = (0, 2, 3))
+        print(table)
         
     def validate_input(self, n, min, max) -> bool:
         if not isinstance(n, int):

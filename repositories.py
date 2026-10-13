@@ -53,7 +53,7 @@ class MemberRepository:
             
             return cursor.rowcount
         
-    def load_all(self):
+    def load_all(self) -> tuple[Member, ...]:
         with self.connection.cursor() as cursor:
             sql = """
                 SELECT * FROM members
@@ -66,7 +66,7 @@ class MemberRepository:
                 for row in cursor.fetchall()
             )
             
-    def load_by_email(self, email):
+    def load_by_email(self, email) -> Member | None:
         with self.connection.cursor() as cursor:
             sql = """
                 SELECT * FROM members
@@ -140,7 +140,7 @@ class ProductRepository:
             
             return cursor.rowcount
         
-    def load_all(self):
+    def load_all(self) -> tuple[Product, ...]:
         with self.connection.cursor() as cursor:
             sql = """
                 SELECT * FROM products
@@ -196,30 +196,42 @@ class SaleRepository:
             
             return cursor.rowcount
         
-    def load_by_member_id(self, member_id) -> tuple:
+    def load_by_member_id(self, member_id: int) -> tuple[SaleDetail, ...]:
         with self.connection.cursor() as cursor:
             sql = """
-                SELECT * FROM sales
-                WHERE member_id = %s
+                SELECT
+                    s.sale_id, m.name AS member_name, p.name AS product_name,
+                    s.quantity, s.sale_price, s.sale_date
+                FROM sales AS s
+                JOIN members AS m ON m.member_id = s.member_id
+                JOIN products AS p ON p.product_id = s.product_id
+                WHERE s.member_id = %s
+                ORDER BY s.sale_date DESC, s.sale_id DESC
             """
             params = (member_id,)
             
             cursor.execute(sql, params)
             return tuple(
-                Sale(*row)
+                SaleDetail(*row)
                 for row in cursor.fetchall()
             )
             
-    def load_all(self) -> tuple:
+    def load_all(self) -> tuple[SaleDetail, ...]:
         with self.connection.cursor() as cursor:
             sql = """
-                SELECT * FROM sales
+                SELECT
+                    s.sale_id, m.name AS member_name, p.name AS product_name,
+                    s.quantity, s.sale_price, s.sale_date
+                FROM sales AS s
+                JOIN members AS m ON m.member_id = s.member_id
+                JOIN products AS p ON p.product_id = s.product_id
+                ORDER BY s.sale_date DESC, s.sale_id DESC
             """
             
             cursor.execute(sql)
             
             return tuple(
-                Sale(*row)
+                SaleDetail(*row)
                 for row in cursor.fetchall()
             )
             

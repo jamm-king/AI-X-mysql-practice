@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from datetime import datetime
+from decimal import Decimal
 
 @dataclass
 class Member:
@@ -10,7 +12,7 @@ class Member:
     join_date: str
     
     def __str__(self):
-        return f"{self.member_id:<5} {self.name:<5} {self.email if self.email else "N/A":<20} {self.phone if self.phone else "N/A":<15} {self.address if self.address else "N/A"}"
+        return f"{self.member_id} | {self.name} | {self.email if self.email else "N/A"} | {self.phone if self.phone else "N/A"} | {self.address if self.address else "N/A"}"
     
     def modify(
         self,
@@ -39,7 +41,7 @@ class Product:
     category: str
     
     def __str__(self):
-        return f"{self.product_id:<5} {self.name:<10} {self.price:<7} {self.stock:<5} {self.category if self.category else "N/A"}"
+        return f"{self.product_id} | {self.name} | {self.price:,.2f} | {self.stock} | {self.category if self.category else "N/A"}"
     
     def subtract_stock(self, quantity):
         self.stock -= quantity
@@ -74,4 +76,16 @@ class Sale:
     sale_date: int
     
     def __str__(self):
-        return f"{self.sale_id:<5} {self.member_id:<5} {self.product_id:<5} {self.quantity:<5} {self.sale_price:<10} {self.sale_date}"
+        return f"{self.sale_id} | {self.member_id} | {self.product_id} | {self.quantity} | {self.sale_price:,.2f} | {self.sale_date}"
+
+@dataclass
+class SaleDetail:
+    sale_id: int
+    member_name: str
+    product_name: str
+    quantity: int
+    sale_price: Decimal
+    sale_date: datetime
+
+    def __str__(self):
+        return f"{self.sale_id} | {self.member_name} | {self.product_name} | {self.quantity} | {self.sale_price:,.2f} | {self.sale_date}"
