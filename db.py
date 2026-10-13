@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import mysql.connector
 
-class MysqlConfig:
+class MysqlConnector:
 
     load_dotenv()
     
@@ -20,6 +20,18 @@ class MysqlConfig:
         'database': DATABASE
     }
     
-    @classmethod
-    def get_connection(cls) -> mysql.connector.CMySQLConnection:
-        return mysql.connector.connect(**cls.CONFIG)
+    def get_connection(self) -> mysql.connector.CMySQLConnection:
+            return mysql.connector.connect(**self.CONFIG)
+    
+class MysqlTransaction:
+    def __init__(self, connection: mysql.connector.CMySQLConnection):
+        self. connection = connection
+        
+    def start_transaction(self):
+        self.connection.start_transaction()
+        
+    def commit(self):
+        self.connection.commit()
+        
+    def rollback(self):
+        self.connection.rollback()

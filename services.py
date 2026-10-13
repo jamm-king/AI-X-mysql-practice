@@ -1,13 +1,16 @@
 from datetime import datetime
+from db import *
 from repositories import *
 
 class MemberService:
     def __init__(
         self,
+        tx: MysqlTransaction,
         member_repo: MemberRepository,
         product_repo: ProductRepository,
         sale_repo: SaleRepository
     ):
+        self.tx = tx 
         self.member_repo = member_repo
         self.product_repo = product_repo
         self.sale_repo = sale_repo
@@ -19,56 +22,64 @@ class MemberService:
         phone: str,
         address: str
     ) -> int:
-        join_date = datetime.now()
-        
-        new_member = Member(
-            member_id = None,
-            name = name,
-            email = email,
-            phone = phone,
-            address = address,
-            join_date = join_date
-        )
-        
-        cnt = self.member_repo.save(new_member)
-        
-        self.member_repo.commit()
-        
-        return cnt
-    
-    def buy(self, member_id: int, product_id: int, quantity: int):
-        if member := self.member_repo.load(member_id) is None:
-            raise EntityNotFoundError.member_not_found(member_id)
-        if product := self.product_repo.load(product_id) is None:
-            raise EntityNotFoundError.product_not_found(product_id)
-        if product.stock < quantity:
-            raise ValueError(f"product stock is lower than quantity.")
-        
-        sale_price = product.price * quantity
-        sale_date = datetime.now()
-        new_sale = Sale(
-            sale_id = None, 
-            member_id = member.member_id,
-            product_id = product.product_id,
-            quantity = quantity,
-            sale_price = sale_price,
-            sale_date = sale_date
-        )
-        product.subtract_stock(quantity)
-        
+        self.tx.start_transaction()
+
         try:
+            join_date = datetime.now()
+        
+            new_member = Member(
+                member_id = None,
+                name = name,
+                email = email,
+                phone = phone,
+                address = address,
+                join_date = join_date
+            )
+        
+            cnt = self.member_repo.save(new_member)
+        
+            self.tx.commit()
+        
+            return cnt
+        except Exception:
+            self.tx.rollback()
+            raise
+    
+    def buy(self, email: str, product_id: int, quantity: int):
+        if quantity <= 0:
+            raise ValueError("구매 수량은 1 이상이어야 합니다.")
+
+        self.tx.start_transaction()
+
+        try:
+            if (member := self.member_repo.load_by_email(email)) is None:
+                raise EntityNotFoundError.member_not_found_by_email(email)
+            if (product := self.product_repo.load(product_id)) is None:
+                raise EntityNotFoundError.product_not_found(product_id)
+            if product.stock < quantity:
+                raise ValueError("product stock is lower than quantity.")
+
+            sale_price = product.price * quantity
+            sale_date = datetime.now()
+            new_sale = Sale(
+                sale_id = None,
+                member_id = member.member_id,
+                product_id = product.product_id,
+                quantity = quantity,
+                sale_price = sale_price,
+                sale_date = sale_date
+            )
+            product.subtract_stock(quantity)
+
             self.product_repo.save(product)
-            self.sale_repo.save(new_sale)       
-        except mysql.connector.Error as e:
-            self.product_repo.rollback()
-            self.sale_repo.rollback()
-            raise e
-        
-        self.product_repo.commit()
-        self.sale_repo.commit()
-        
+            self.sale_repo.save(new_sale)
+            self.tx.commit()
+        except Exception:
+            self.tx.rollback()
+            raise
+
     def purchase_list(self, member_id: int) -> tuple:
-        if member := self.member_repo.load(member_id) is None:
+        if (member := self.member_repo.load(member_id)) is None:
             raise EntityNotFoundError.member_not_found(member_id)
         
         return self.sale_repo.load_by_member_id(member.member_id)
@@ -81,16 +92,22 @@ class MemberService:
         phone: str = None,
         address: str = None
     ) -> int:
-        if member := self.member_repo.load(member_id) is None:
-            raise EntityNotFoundError.member_not_found(member_id)
+        self.tx.start_transaction()
+
+        try:
+            if (member := self.member_repo.load(member_id)) is None:
+                raise EntityNotFoundError.member_not_found(member_id)
         
-        member.modify(name, email, phone, address)
+            member.modify(name, email, phone, address)
         
-        cnt = self.member_repo.save(member)
+            cnt = self.member_repo.save(member)
         
-        self.member_repo.commit()
+            self.tx.commit()
         
-        return cnt
+            return cnt
+        except Exception:
+            self.tx.rollback()
+            raise
     
     def retrieve_all(self) -> tuple:
         return self.member_repo.load_all()
@@ -101,10 +118,12 @@ class MemberService:
 class ProductService:
     def __init__(
         self,
+        tx: MysqlTransaction,
         member_repo: MemberRepository,
         product_repo: ProductRepository,
         sale_repo: SaleRepository
     ):
+        self.tx = tx
         self.member_repo = member_repo
         self.product_repo = product_repo
         self.sale_repo = sale_repo
@@ -117,20 +136,29 @@ class ProductService:
         description: str,
         category: str
     ) -> int:
-        new_product = Product(
-            product_id = None,
-            name = name,
-            price = price,
-            stock = stock,
-            description = description,
-            category = category
-        )
+        self.tx.start_transaction()
+
+        try:
+            if price < 0 or stock < 0:
+                raise ValueError("가격과 재고는 0 이상이어야 합니다.")
+
+            new_product = Product(
+                product_id = None,
+                name = name,
+                price = price,
+                stock = stock,
+                description = description,
+                category = category
+            )
         
-        cnt = self.product_repo.save(new_product)
+            cnt = self.product_repo.save(new_product)
         
-        self.product_repo.commit()
+            self.tx.commit()
         
-        return cnt
+            return cnt
+        except Exception:
+            self.tx.rollback()
+            raise
         
     def modify(
         self,
@@ -141,16 +169,25 @@ class ProductService:
         description: str = None,
         category: str = None
     ) -> int:
-        if product := self.product_repo.load(product_id) is None:
-            raise EntityNotFoundError.product_not_found(product_id)
+        self.tx.start_transaction()
+
+        try:
+            if (product := self.product_repo.load(product_id)) is None:
+                raise EntityNotFoundError.product_not_found(product_id)
         
-        product.modify(name, price, stock, description, category)
+            if (price is not None and price < 0) or (stock is not None and stock < 0):
+                raise ValueError("가격과 재고는 0 이상이어야 합니다.")
+
+            product.modify(name, price, stock, description, category)
         
-        cnt = self.product_repo.save(product)
+            cnt = self.product_repo.save(product)
         
-        self.product_repo.commit()
+            self.tx.commit()
         
-        return cnt
+            return cnt
+        except Exception:
+            self.tx.rollback()
+            raise
     
     def retrieve_all(self):
         return self.product_repo.load_all()
@@ -158,31 +195,51 @@ class ProductService:
 class SaleService:
     def __init__(
         self,
+        tx: MysqlTransaction,
         member_repo: MemberRepository,
         product_repo: ProductRepository,
         sale_repo: SaleRepository
     ):
+        self.tx = tx
         self.member_repo = member_repo
         self.product_repo = product_repo
         self.sale_repo = sale_repo
+        
+    def retrieve_by_member_email(self, email: str) -> tuple:
+        if (member := self.member_repo.load_by_email(email)) is None:
+            raise EntityNotFoundError.member_not_found_by_email(email)
+        
+        return self.sale_repo.load_by_member_id(member.member_id)
         
     def retrieve_all(self) -> tuple:
         return self.sale_repo.load_all()
     
     def remove(self, sale_id: int) -> int:
-        if self.sale_repo.load(sale_id) is None:
-            raise EntityNotFoundError.sale_not_found(sale_id)
+        self.tx.start_transaction()
+
+        try:
+            if (self.sale_repo.load(sale_id)) is None:
+                raise EntityNotFoundError.sale_not_found(sale_id)
         
-        cnt = self.sale_repo.delete(sale_id)
+            cnt = self.sale_repo.delete(sale_id)
         
-        self.sale_repo.commit()
+            self.tx.commit()
         
-        return cnt
+            return cnt
+        except Exception:
+            self.tx.rollback()
+            raise
         
 class EntityNotFoundError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
+    
     @classmethod
     def member_not_found(cls, member_id):
         return cls(f"member for id {member_id} is not found.")
+    @classmethod
+    def member_not_found_by_email(cls, email):
+        return cls(f"member for email {email} is not found.")
     @classmethod
     def product_not_found(cls, product_id):
         return cls(f"product for id {product_id} is not found.")
