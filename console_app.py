@@ -1,6 +1,6 @@
 from db import MysqlConnector
 from usecases import *
-from console_table import format_table
+from utils import format_table
 
 class ConsoleApp():
     def __init__(
